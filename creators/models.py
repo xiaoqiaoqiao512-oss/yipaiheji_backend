@@ -84,3 +84,43 @@ class Work(models.Model):
     
     def __str__(self):
         return f"{self.creator.username}的作品: {self.title or '未命名'}"
+    
+class Service(models.Model):
+    """创作者的服务项目"""
+    
+    creator = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='services',
+        verbose_name='创作者'
+    )
+    
+    # 服务基本信息
+    name = models.CharField('服务名称', max_length=100)
+    description = models.TextField('服务描述')
+    base_price = models.DecimalField('基础价格', max_digits=8, decimal_places=2)
+    price_range = models.CharField('价格区间', max_length=50, blank=True, null=True)  # 如 "100-300元"
+    estimated_time = models.CharField('预计时长', max_length=50, blank=True, null=True)  # 如 "2小时"
+    
+    # 服务配置
+    is_negotiable = models.BooleanField('接受议价', default=True)
+    is_available = models.BooleanField('可接单', default=True)
+    
+    # 标签
+    tags = models.JSONField('标签', default=list, blank=True)
+    
+    # 统计数据
+    order_count = models.IntegerField('接单次数', default=0)
+    
+    # 时间戳
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+    
+    class Meta:
+        db_table = 'services'
+        verbose_name = '服务项目'
+        verbose_name_plural = verbose_name
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.creator.username}的服务：{self.name}"

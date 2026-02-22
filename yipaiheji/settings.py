@@ -43,6 +43,10 @@ INSTALLED_APPS = [
     'creators', 
     'demands',
     'chat',
+    'equipment',
+    'groupbuy',
+    'rest_framework',           # DRF
+    'rest_framework_simplejwt', # JWT认证
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -126,3 +130,19 @@ STATIC_URL = 'static/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media' 
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',  # 默认需要认证
+    ),
+}
+
+# JWT配置
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),  # 访问令牌有效期7天
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),  # 刷新令牌有效期30天
+}
