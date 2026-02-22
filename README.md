@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+[README.md](https://github.com/user-attachments/files/25161228/README.md)
+>>>>>>> 952aaf202bbc0e303eb3a8cf620a4da5c87e6e4a
 # 一拍和集 (YiPaiHeJi) 后端 API
 
 一个基于 Django 和 Django REST Framework 的大学生摄影交易平台的后端服务。用户可以发布摄影需求，创作者可以提供摄影服务。
