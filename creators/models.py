@@ -1,6 +1,5 @@
-
 from django.db import models
-from users.models import User  # 导入我们自定义的User
+from users.models import User 
 
 class CreatorProfile(models.Model):
     """创作者详细信息档案"""
@@ -40,6 +39,39 @@ class CreatorProfile(models.Model):
     
     def __str__(self):
         return f"{self.user.username}的创作者档案"
+    
+class Location(models.Model):
+    """武大出片地图预设地点"""
+    CATEGORY_CHOICES = [
+        ('landmark', '地标打卡型'),
+        ('nature', '自然景观型'),
+        ('life', '校园生活型'),
+        ('architecture', '典型建筑型'),
+    ]
+    CAMPUS_CHOICES = [
+        ('wl', '文理学部'),
+        ('gc', '工学部'),
+        ('xx', '信息学部'),
+        ('yx', '医学部'),
+        ('other', '其他'),
+    ]
+
+    name = models.CharField('地点名称', max_length=100, unique=True)
+    longitude = models.DecimalField('经度', max_digits=9, decimal_places=6)
+    latitude = models.DecimalField('纬度', max_digits=9, decimal_places=6)
+    description = models.TextField('简短描述', blank=True, null=True)
+    category = models.CharField('分类', max_length=20, choices=CATEGORY_CHOICES, blank=True, null=True)
+    campus = models.CharField('学部', max_length=20, choices=CAMPUS_CHOICES, blank=True, null=True)
+    is_active = models.BooleanField('是否启用', default=True)
+
+    class Meta:
+        db_table = 'locations'
+        verbose_name = '拍摄地点'
+        verbose_name_plural = verbose_name
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
 
 
 class Work(models.Model):
@@ -55,7 +87,14 @@ class Work(models.Model):
     
     # 作品信息
     title = models.CharField('作品标题', max_length=100, blank=True, null=True)
-    image = models.ImageField('作品图片', upload_to='works/')  # 必须上传
+    # 修改 image 字段为可选（封面图），并添加帮助文本
+    image = models.ImageField(
+        '封面图片',
+        upload_to='works/',
+        blank=True,
+        null=True,
+        help_text='自动从上传图片的第一张生成'
+    )
     description = models.TextField('作品描述', blank=True, null=True)
     
     # 标签系统
@@ -64,6 +103,14 @@ class Work(models.Model):
     # 作品信息
     shooting_time = models.DateTimeField('拍摄时间', blank=True, null=True)
     shooting_location = models.CharField('拍摄地点', max_length=200, blank=True, null=True)
+    # 新增：关联预设地点库
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='关联地点'
+    )
     
     # 互动数据
     like_count = models.IntegerField('点赞数', default=0)
@@ -71,6 +118,9 @@ class Work(models.Model):
     
     # 状态
     is_public = models.BooleanField('是否公开', default=True)
+    
+    # 新增：作品集排序（用于拖拽排序）
+    display_order = models.IntegerField('排序', default=0)
     
     # 时间戳
     created_at = models.DateTimeField('创建时间', auto_now_add=True)
@@ -85,6 +135,81 @@ class Work(models.Model):
     def __str__(self):
         return f"{self.creator.username}的作品: {self.title or '未命名'}"
     
+
+class WorkImage(models.Model):
+    """作品集中的单张图片"""
+    work = models.ForeignKey(
+        Work,
+        on_delete=models.CASCADE,
+        related_name='images',
+        verbose_name='所属作品集'
+    )
+    image = models.ImageField('图片文件', upload_to='works/')
+    order = models.PositiveIntegerField('排序', default=0)
+    created_at = models.DateTimeField('上传时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'work_images'
+        ordering = ['order']
+        unique_together = ('work', 'order')  # 同一作品集内顺序不重复
+        verbose_name = '作品图片'
+        verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return f'{self.work.title} 的第 {self.order} 张图'
+
+
+class WorkLike(models.Model):
+    """作品点赞记录"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='work_likes')
+    work = models.ForeignKey(Work, on_delete=models.CASCADE, related_name='likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'work_likes'
+        unique_together = ('user', 'work')  # 防止重复点赞
+        verbose_name = '作品点赞'
+        verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return f"{self.user.username} 点赞了 {self.work.title}"
+
+
+class Comment(models.Model):
+    """作品评论"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments')
+    work = models.ForeignKey(Work, on_delete=models.CASCADE, related_name='comments')
+    content = models.TextField('评论内容')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(default=False)  # 软删除
+
+    class Meta:
+        db_table = 'comments'
+        ordering = ['-created_at']
+        verbose_name = '评论'
+        verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return f"{self.user.username} 评论了 {self.work.title}"
+
+
+class Favorite(models.Model):
+    """用户收藏作品"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favorites')
+    work = models.ForeignKey(Work, on_delete=models.CASCADE, related_name='favorited_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'favorites'
+        unique_together = ('user', 'work')
+        verbose_name = '收藏'
+        verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return f"{self.user.username} 收藏了 {self.work.title}"
+    
+
 class Service(models.Model):
     """创作者的服务项目"""
     
