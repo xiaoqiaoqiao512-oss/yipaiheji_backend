@@ -6,12 +6,21 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
-from django.db.models import Q
+from django.db.models import Q, Case, When  # 新增导入 Case, When
 from .models import Demand, DemandComment
 from .serializers import (
     DemandSerializer, DemandListSerializer,
     DemandCommentSerializer, DemandDetailSerializer
 )
+
+# ====== 新增导入：创作者相关 ======
+from creators.models import CreatorProfile
+from creators.serializers import CreatorPublicSerializer
+
+# 导入日志
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DemandListCreateView(generics.ListCreateAPIView):
     """需求列表和创建"""
@@ -46,6 +55,15 @@ class DemandListCreateView(generics.ListCreateAPIView):
         # 默认只显示待接单的需求
         if not status:
             queryset = queryset.filter(status='pending')
+        
+        # ====== 新增：为创作者按匹配度排序（for_creator 参数）======
+        for_creator = self.request.query_params.get('for_creator')
+        if for_creator and self.request.user.is_authenticated:
+            # SQLite 不支持 JSONField 的 contains 查询，暂时禁用该功能
+            # 记录日志提示，并返回默认排序
+            logger.warning("for_creator 排序在 SQLite 上不可用，已忽略，返回默认排序")
+            # 不做任何处理，直接返回现有 queryset
+            pass
         
         return queryset.order_by('-created_at')
 
@@ -153,3 +171,39 @@ class MyBidsView(generics.ListAPIView):
     
     def get_queryset(self):
         return DemandComment.objects.filter(creator=self.request.user).order_by('-created_at')
+
+
+# ====== 新增：需求详情页推荐创作者接口 ======
+class DemandRecommendedCreatorsView(APIView):
+    """
+    为指定需求推荐前5位匹配度最高的创作者。
+    匹配规则：标签重合度 > 平均评分
+    GET /demands/{demand_id}/recommended_creators/
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, demand_id):
+        demand = get_object_or_404(Demand, id=demand_id)
+        demand_tag_ids = set(demand.tags)  # 需求标签ID集合
+
+        if not demand_tag_ids:
+            return Response([])  # 需求无标签，无法推荐
+
+        # 获取所有创作者（可添加额外过滤条件，如只获取有标签的创作者）
+        all_creators = CreatorProfile.objects.all().select_related('user')
+
+        # 在 Python 中计算匹配度（因为 SQLite 不支持 JSONField 的 contains 查询）
+        creator_list = []
+        for creator in all_creators:
+            creator_tag_ids = set(creator.tags)
+            common_tags = demand_tag_ids & creator_tag_ids
+            if common_tags:  # 只考虑有共同标签的创作者
+                match_count = len(common_tags)
+                creator_list.append((creator, match_count))
+
+        # 按匹配数降序，同分按平均评分降序
+        creator_list.sort(key=lambda x: (x[1], x[0].average_rating), reverse=True)
+        top_creators = [c[0] for c in creator_list[:5]]
+
+        serializer = CreatorPublicSerializer(top_creators, many=True, context={'request': request})
+        return Response(serializer.data)

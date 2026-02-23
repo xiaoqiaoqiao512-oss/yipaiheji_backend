@@ -17,4 +17,7 @@ urlpatterns = [
     # 我的需求和报价
     path('my-demands/', views.MyDemandsView.as_view(), name='my-demands'),
     path('my-bids/', views.MyBidsView.as_view(), name='my-bids'),
+
+    #tag
+    path('<int:demand_id>/recommended_creators/', views.DemandRecommendedCreatorsView.as_view(), name='demand-recommended-creators'),
 ]

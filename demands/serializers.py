@@ -2,12 +2,14 @@
 from rest_framework import serializers
 from .models import Demand, DemandComment
 from users.models import User
+from creators.tag_choices import CATEGORY_SCENE, CATEGORY_SKILL, get_tags_by_category
+from creators.tag_choices import is_valid_tag_id
 
 class DemandSerializer(serializers.ModelSerializer):
     """需求序列化器"""
     publisher_username = serializers.CharField(source='publisher.username', read_only=True)
     publisher_avatar = serializers.ImageField(source='publisher.avatar', read_only=True)
-    
+    tags = serializers.JSONField(required=True)
     # 时间格式化
     created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M", read_only=True)
     shooting_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M")
@@ -29,6 +31,20 @@ class DemandSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['publisher'] = user
         return super().create(validated_data)
+    def validate_tags(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("标签必须是一个列表")
+        scene_tags = [tid for tid in value if tid in [t[0] for t in get_tags_by_category(CATEGORY_SCENE)]]
+        if len(scene_tags) != 1:
+            raise serializers.ValidationError("必须选择且只能选择一个拍摄场景标签")
+        skill_tags = [tid for tid in value if tid in [t[0] for t in get_tags_by_category(CATEGORY_SKILL)]]
+        if len(skill_tags) == 0:
+            raise serializers.ValidationError("请至少选择一个设备与技能标签")
+        # 其他分类可选，不强制
+        for tag_id in value:
+            if not is_valid_tag_id(tag_id):
+                raise serializers.ValidationError(f"无效的标签ID: {tag_id}")
+        return value
 
 
 class DemandListSerializer(serializers.ModelSerializer):
