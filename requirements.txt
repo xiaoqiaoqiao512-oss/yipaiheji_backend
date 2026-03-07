@@ -4,4 +4,3 @@ djangorestframework-simplejwt
 django-cors-headers
 Pillow
 django-filter
-drf-spectacular
