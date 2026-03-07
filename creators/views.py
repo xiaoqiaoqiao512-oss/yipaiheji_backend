@@ -5,16 +5,18 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
-from django.db.models import Count, Q, OuterRef, Subquery,Max
+from django.db.models import Count, Q, OuterRef, Subquery, Max
 from .models import CreatorProfile, Work, WorkImage, Service, Location, WorkLike, Comment, Favorite
 from .serializers import (
-    WorkSerializer, ServiceSerializer, 
+    WorkSerializer, ServiceSerializer,
     CreatorProfileSerializer, CreatorPublicSerializer,
     LocationListSerializer, MyLocationSerializer,
     CommentSerializer, CommentCreateSerializer,
     FavoriteSerializer, WorkImageSerializer
 )
 from users.models import User
+# ====== 新增导入：标签常量 ======
+from .tag_choices import TAGS, CATEGORY_SCENE, CATEGORY_SKILL, CATEGORY_SPECIAL, CATEGORY_POST
 
 # ========== 添加权限控制 ==========
 class IsCreator(permissions.BasePermission):
@@ -463,3 +465,21 @@ class UserFavoriteListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Favorite.objects.filter(user=self.request.user).order_by('-created_at')
+
+
+# ========== 新增：标签列表接口（用于前端选择） ==========
+class TagListView(APIView):
+    """
+    获取所有预设标签，按分类组织返回。
+    任何人都可以访问，用于发布需求、创作者编辑资料时的标签选择。
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        tags_by_category = {
+            'scene': [{'id': t[0], 'name': t[1]} for t in TAGS if t[2] == CATEGORY_SCENE],
+            'skill': [{'id': t[0], 'name': t[1]} for t in TAGS if t[2] == CATEGORY_SKILL],
+            'special': [{'id': t[0], 'name': t[1]} for t in TAGS if t[2] == CATEGORY_SPECIAL],
+            'post': [{'id': t[0], 'name': t[1]} for t in TAGS if t[2] == CATEGORY_POST],
+        }
+        return Response(tags_by_category)

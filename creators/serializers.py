@@ -2,6 +2,13 @@
 from rest_framework import serializers
 from .models import CreatorProfile, Work, Service, Location, WorkLike, Comment, Favorite, WorkImage
 from users.models import User
+from .tag_choices import is_valid_tag_id, TAGS
+
+class WorkImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkImage
+        fields = ['id', 'image', 'order']
+
 
 
 class WorkImageSerializer(serializers.ModelSerializer):
@@ -36,7 +43,7 @@ class WorkSerializer(serializers.ModelSerializer):
             'location', 'location_name', 'location_detail',
             'like_count', 'view_count', 'is_public', 'created_at',
             'is_liked', 'is_favorited', 'comment_count', 'recent_comments',
-            'display_order', 'image','images' 
+            'display_order', 'image', 'images' 
         ]
         read_only_fields = ['like_count', 'view_count', 'created_at']
 
@@ -73,6 +80,17 @@ class WorkSerializer(serializers.ModelSerializer):
         validated_data['creator'] = user
         return super().create(validated_data)
 
+    # ===== 新增：tags 字段验证 =====
+    def validate_tags(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("标签必须是一个列表")
+        for tag_id in value:
+            if not isinstance(tag_id, int):
+                raise serializers.ValidationError("标签ID必须是整数")
+            if not is_valid_tag_id(tag_id):
+                raise serializers.ValidationError(f"无效的标签ID: {tag_id}")
+        return value
+
 
 class ServiceSerializer(serializers.ModelSerializer):
     """服务项目序列化器"""
@@ -90,6 +108,17 @@ class ServiceSerializer(serializers.ModelSerializer):
         validated_data['creator'] = user
         return super().create(validated_data)
 
+    # ===== 新增：tags 字段验证 =====
+    def validate_tags(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("标签必须是一个列表")
+        for tag_id in value:
+            if not isinstance(tag_id, int):
+                raise serializers.ValidationError("标签ID必须是整数")
+            if not is_valid_tag_id(tag_id):
+                raise serializers.ValidationError(f"无效的标签ID: {tag_id}")
+        return value
+
 
 class CreatorProfileSerializer(serializers.ModelSerializer):
     """创作者档案序列化器"""
@@ -97,6 +126,8 @@ class CreatorProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     student_id = serializers.CharField(source='user.student_id', read_only=True)
     avatar = serializers.ImageField(source='user.avatar', read_only=True)
+    # ===== 新增：tags 字段 =====
+    tags = serializers.JSONField(required=False, default=list)
 
     class Meta:
         model = CreatorProfile
@@ -104,9 +135,21 @@ class CreatorProfileSerializer(serializers.ModelSerializer):
                   'service_intro', 'base_price', 'price_range', 'is_negotiable',
                   'camera_model', 'can_provide_makeup', 'can_provide_costume',
                   'completed_orders', 'average_rating', 'view_count',
+                  'tags',  # 新增
                   'created_at', 'updated_at']
         read_only_fields = ['completed_orders', 'average_rating', 'view_count',
                            'created_at', 'updated_at']
+
+    # ===== 新增：tags 字段验证 =====
+    def validate_tags(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("标签必须是一个列表")
+        for tag_id in value:
+            if not isinstance(tag_id, int):
+                raise serializers.ValidationError("标签ID必须是整数")
+            if not is_valid_tag_id(tag_id):
+                raise serializers.ValidationError(f"无效的标签ID: {tag_id}")
+        return value
 
 
 class CreatorPublicSerializer(serializers.ModelSerializer):
@@ -120,12 +163,14 @@ class CreatorPublicSerializer(serializers.ModelSerializer):
     recent_works = serializers.SerializerMethodField()
     # 获取服务列表
     services = ServiceSerializer(many=True, read_only=True, source='user.services')
+    # 创作者标签
+    tags = serializers.JSONField(required=False)
 
     class Meta:
         model = CreatorProfile
         fields = ['id', 'username', 'avatar', 'service_intro',
                   'base_price', 'average_rating', 'completed_orders',
-                  'work_count', 'recent_works', 'services']
+                  'work_count', 'recent_works', 'services', 'tags']  # tags 已在其中
 
     def get_work_count(self, obj):
         """获取作品数量"""
@@ -135,6 +180,14 @@ class CreatorPublicSerializer(serializers.ModelSerializer):
         """获取最近3个公开作品"""
         works = obj.user.works.filter(is_public=True).order_by('-created_at')[:3]
         return WorkSerializer(works, many=True, context=self.context).data
+
+    def validate_tags(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("标签必须是一个列表")
+        for tag_id in value:
+            if not isinstance(tag_id, int) or not is_valid_tag_id(tag_id):
+                raise serializers.ValidationError(f"无效的标签ID: {tag_id}")
+        return value
 
 
 # ========== 新增：地点相关序列化器 ==========

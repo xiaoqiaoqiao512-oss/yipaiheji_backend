@@ -12,6 +12,9 @@ class CreatorProfile(models.Model):
         verbose_name='关联用户'
     )
     
+    # 存储标签ID列表
+    tags = models.JSONField('创作者标签', default=list, blank=True)  
+    
     # 服务信息
     service_intro = models.TextField('服务介绍', blank=True, null=True)
     base_price = models.DecimalField('基础价格', max_digits=8, decimal_places=2, default=0)

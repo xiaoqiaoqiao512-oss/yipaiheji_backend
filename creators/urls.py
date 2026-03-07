@@ -26,6 +26,9 @@ urlpatterns = [
     # 公开作品墙
     path('public-works/', views.PublicWorksView.as_view(), name='public-works'),
 
+    #tag
+    path('tags/', views.TagListView.as_view(), name='tag-list'),
+
     # 地图相关
     path('map/locations/', views.LocationMapView.as_view(), name='location-map'),
     path('map/my-locations/', views.MyLocationMapView.as_view(), name='my-location-map'),
