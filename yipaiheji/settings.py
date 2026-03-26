@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 import os
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -47,6 +48,7 @@ INSTALLED_APPS = [
     'groupbuy',
     'rest_framework',           # DRF
     'rest_framework_simplejwt', # JWT认证
+    'drf_spectacular',          # OpenAPI 文档生成
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -133,16 +135,30 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication', 
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',  # 默认需要认证
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  # 用于生成 OpenAPI schema
 }
 
 # JWT配置
-from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=7),  # 访问令牌有效期7天
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),  # 刷新令牌有效期30天
+}
+
+# drf-spectacular 配置
+SPECTACULAR_SETTINGS = {
+    'TITLE': '一拍即合 API',
+    'DESCRIPTION': '后端接口文档，包含用户、创作者、需求、聊天、设备租赁、拼单等模块',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,  # 如果为 True，则会在 /api/schema 暴露 schema 视图（需要登录权限）
+    # 其他可选配置：
+    # 'SWAGGER_UI_SETTINGS': {
+    #     'deepLinking': True,
+    # },
+    # 'COMPONENT_SPLIT_REQUEST': True,
 }

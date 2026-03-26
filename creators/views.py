@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.db import models
 # creators/views.py
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.views import APIView
@@ -151,10 +152,16 @@ class WorkImageViewSet(viewsets.ModelViewSet):
         # 确保图片属于当前创作者的作品
         work_id = self.request.data.get('work')
         work = get_object_or_404(Work, id=work_id, creator=self.request.user)
-        # 自动分配顺序：当前最大 order + 1
-        max_order = work.images.aggregate(models.Max('order'))['order__max'] or -1
+
+        # 直接通过 WorkImage 模型查询当前作品的最大 order，避免 related_name 可能的问题
+        max_order = WorkImage.objects.filter(work=work).aggregate(Max('order'))['order__max']
+        if max_order is None:
+            max_order = -1
+
+        # 保存新图片，order = max_order + 1
         serializer.save(work=work, order=max_order + 1)
-        # 如果是第一张图，更新 Work 封面
+
+        # 如果是第一张图，自动设置为作品封面
         if max_order == -1:
             work.image = serializer.instance.image
             work.save()

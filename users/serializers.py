@@ -57,6 +57,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             # 新增字段
             'creator_application_status', 'creator_applied_at',
             'completed_orders', 'is_active_creator',
+            # 学生卡照片（用于校园认证）
+            'student_card_img',
             # 计算属性
             'is_creator', 'display_role',
             'created_at'
@@ -65,6 +67,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'role', 'is_verified', 'created_at',
             'creator_application_status', 'creator_applied_at',  # 这些字段不能直接修改
             'completed_orders', 'is_active_creator',
+            'student_card_img',  # 学生卡照片设为只读，防止通过此接口修改
             'is_creator', 'display_role'  # 计算属性也是只读的
         ]
     
@@ -79,3 +82,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         
         instance.save()
         return instance
+
+
+class StudentCardUploadSerializer(serializers.ModelSerializer):
+    """学生卡照片上传序列化器（仅用于上传）"""
+    class Meta:
+        model = User
+        fields = ['student_card_img']
+        # 这里不设置 read_only，因为需要允许写入
