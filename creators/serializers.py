@@ -10,13 +10,6 @@ class WorkImageSerializer(serializers.ModelSerializer):
         fields = ['id', 'image', 'order']
 
 
-
-class WorkImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = WorkImage
-        fields = ['id', 'image', 'order']
-
-
 class WorkSerializer(serializers.ModelSerializer):
     """作品序列化器"""
     creator_username = serializers.CharField(source='creator.username', read_only=True)
