@@ -20,4 +20,7 @@ urlpatterns = [
 
     #tag
     path('<int:demand_id>/recommended_creators/', views.DemandRecommendedCreatorsView.as_view(), name='demand-recommended-creators'),
+
+    #单图上传
+    path('upload-image/', views.SingleImageUploadView.as_view(), name='upload-image'),
 ]

@@ -142,3 +142,24 @@ class User(AbstractUser):
             pass
         
         return True, "创作者申请已被拒绝"
+
+
+class CreatorSampleImage(models.Model):
+    """创作者申请时上传的样片（作品示例），每张图片一条记录"""
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='sample_images',
+        verbose_name='申请用户'
+    )
+    image = models.ImageField('样片图片', upload_to='creator_samples/')
+    uploaded_at = models.DateTimeField('上传时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'creator_sample_images'
+        verbose_name = '创作者样片'
+        verbose_name_plural = verbose_name
+        ordering = ['uploaded_at']
+
+    def __str__(self):
+        return f"{self.user.username} 的样片 {self.id}"

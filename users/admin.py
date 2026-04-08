@@ -1,6 +1,17 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User
+from .models import User, CreatorSampleImage
+
+class CreatorSampleImageInline(admin.TabularInline):
+    """样片内联显示，用于在用户详情页展示上传的样片"""
+    model = CreatorSampleImage
+    extra = 0  # 不显示额外的空行
+    fields = ('image', 'uploaded_at')
+    readonly_fields = ('uploaded_at',)
+    can_delete = True
+    max_num = 5  # 最多显示5张
+    verbose_name = "样片"
+    verbose_name_plural = "样片列表"
 
 class CustomUserAdmin(UserAdmin):
     """自定义用户后台管理界面"""
@@ -16,7 +27,7 @@ class CustomUserAdmin(UserAdmin):
     list_filter = ('role', 'is_verified', 'creator_application_status', 
                    'is_active_creator', 'is_staff', 'is_superuser')
     
-    # 详情页字段分组 决定了添加/编辑用户时显示哪些字段
+    # 详情页字段分组
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         ('个人信息', {'fields': ('first_name', 'last_name', 'email', 'bio')}), 
@@ -28,7 +39,7 @@ class CustomUserAdmin(UserAdmin):
         ('重要日期', {'fields': ('last_login', 'date_joined')}),
     )
     
-    # 添加用户时显示的字段（比编辑时少）
+    # 添加用户时显示的字段
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
@@ -38,6 +49,18 @@ class CustomUserAdmin(UserAdmin):
     
     # 只读字段
     readonly_fields = ('creator_applied_at',)
+    
+    # 添加内联样片显示
+    inlines = [CreatorSampleImageInline]
+
+# 注册 CreatorSampleImage 模型的管理类（可选，但建议注册以独立管理）
+@admin.register(CreatorSampleImage)
+class CreatorSampleImageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'uploaded_at')
+    list_filter = ('uploaded_at',)
+    search_fields = ('user__username', 'user__student_id')
+    raw_id_fields = ('user',)  # 便于按用户搜索
+    readonly_fields = ('uploaded_at',)
 
 # 注册自定义用户模型和管理类
 admin.site.register(User, CustomUserAdmin)
