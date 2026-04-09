@@ -1,15 +1,15 @@
 # demands/serializers.py
+import json
+
 from rest_framework import serializers
 from .models import Demand, DemandComment
 from users.models import User
-from creators.tag_choices import CATEGORY_SCENE, CATEGORY_SKILL, get_tags_by_category
-from creators.tag_choices import is_valid_tag_id
 
 class DemandSerializer(serializers.ModelSerializer):
     """需求序列化器"""
     publisher_username = serializers.CharField(source='publisher.username', read_only=True)
     publisher_avatar = serializers.ImageField(source='publisher.avatar', read_only=True)
-    tags = serializers.JSONField(required=True)
+    tags = serializers.JSONField(required=False, default=list)
     # 时间格式化
     created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M", read_only=True)
     shooting_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M")
@@ -31,20 +31,62 @@ class DemandSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['publisher'] = user
         return super().create(validated_data)
+
     def validate_tags(self, value):
-        if not isinstance(value, list):
-            raise serializers.ValidationError("标签必须是一个列表")
-        scene_tags = [tid for tid in value if tid in [t[0] for t in get_tags_by_category(CATEGORY_SCENE)]]
-        if len(scene_tags) != 1:
-            raise serializers.ValidationError("必须选择且只能选择一个拍摄场景标签")
-        skill_tags = [tid for tid in value if tid in [t[0] for t in get_tags_by_category(CATEGORY_SKILL)]]
-        if len(skill_tags) == 0:
-            raise serializers.ValidationError("请至少选择一个设备与技能标签")
-        # 其他分类可选，不强制
-        for tag_id in value:
-            if not is_valid_tag_id(tag_id):
-                raise serializers.ValidationError(f"无效的标签ID: {tag_id}")
-        return value
+        """
+        兼容前端多种传法：
+        1) 字符串数组，如 ["毕业照"]
+        2) 逗号分隔字符串，如 "毕业照,夜景"
+        3) 标签 ID 数组，如 [1, 101]
+        """
+        if value is None:
+            return []
+
+        normalized = value
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+
+            if text.startswith('['):
+                try:
+                    normalized = json.loads(text)
+                except json.JSONDecodeError:
+                    normalized = [item.strip() for item in text.split(',') if item.strip()]
+            else:
+                normalized = [item.strip() for item in text.split(',') if item.strip()]
+
+        if not isinstance(normalized, list):
+            raise serializers.ValidationError("tags 必须是字符串或字符串数组")
+
+        cleaned = []
+        for item in normalized:
+            if isinstance(item, bool):
+                raise serializers.ValidationError("tags 元素不能是布尔值")
+
+            if isinstance(item, int):
+                cleaned.append(item)
+                continue
+
+            if isinstance(item, float):
+                if not item.is_integer():
+                    raise serializers.ValidationError("tags 数字标签必须为整数")
+                cleaned.append(int(item))
+                continue
+
+            if isinstance(item, str):
+                tag = item.strip()
+                if not tag:
+                    continue
+                cleaned.append(int(tag) if tag.isdigit() else tag)
+                continue
+
+            raise serializers.ValidationError("tags 元素必须是字符串或数字")
+
+        if not cleaned:
+            raise serializers.ValidationError("请至少提供一个标签")
+
+        return cleaned
 
 
 class DemandListSerializer(serializers.ModelSerializer):

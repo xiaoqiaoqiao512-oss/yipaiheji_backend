@@ -37,6 +37,24 @@ Authorization: Bearer <access_token>
 
 涉及图片上传的接口（如作品图片、头像等）需使用 multipart/form-data。
 
+### 1.4 全局单图上传
+
+- 方法：POST
+- 路径：/api/uploads/image/
+- 权限：登录
+- Content-Type：multipart/form-data
+- 字段：
+  - image：图片文件（必填）
+  - biz：业务标识（可选，如 demands/equipment/works，默认 common）
+
+成功响应示例（201）：
+
+{
+  "url": "http://127.0.0.1:8000/media/uploads/demands/user_1/xxxx.jpg",
+  "path": "uploads/demands/user_1/xxxx.jpg",
+  "biz": "demands"
+}
+
 ---
 
 ## 2. 通用枚举
@@ -381,6 +399,10 @@ Authorization: Bearer <access_token>
 #### POST /api/demands/
 
 - 权限：登录
+- tags 字段支持：
+  - 字符串数组（推荐）：["毕业照", "夜景"]
+  - 逗号分隔字符串："毕业照,夜景"
+  - 数字标签 ID 数组：[1, 101]
 - 请求体示例：
 
 {
@@ -398,6 +420,14 @@ Authorization: Bearer <access_token>
   "special_topic": "毕业季",
   "reference_images": ["https://example.com/1.jpg"]
 }
+
+### 5.1.1 需求图片上传（兼容旧地址）
+
+#### POST /api/demands/upload-image/
+
+- 权限：登录
+- 说明：兼容旧地址，内部复用全局接口 /api/uploads/image/
+- 建议：新接入统一使用 /api/uploads/image/
 
 ### 5.2 需求详情、修改、删除
 

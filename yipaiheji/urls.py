@@ -23,6 +23,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from .upload_views import GlobalSingleImageUploadView
 
 
 urlpatterns = [
@@ -47,6 +48,9 @@ urlpatterns = [
     
     # JWT Token刷新
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+    # 全局单图上传
+    path('api/uploads/image/', GlobalSingleImageUploadView.as_view(), name='global-upload-image'),
 
     # OpenAPI schema
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

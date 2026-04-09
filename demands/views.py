@@ -1,13 +1,8 @@
 # demands/views.py
-from django.shortcuts import render
-
-# rest_framework 相关
-from rest_framework import generics, permissions, status, filters
+from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
-from django.db.models import Q, Case, When
 
 # 模型与序列化器
 from .models import Demand, DemandComment
@@ -19,16 +14,7 @@ from .serializers import (
 # 创作者相关
 from creators.models import CreatorProfile
 from creators.serializers import CreatorPublicSerializer
-
-# 图片上传所需
-import os
-import uuid
-from django.conf import settings
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
-
-# drf-spectacular 文档
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from yipaiheji.upload_views import GlobalSingleImageUploadView
 
 # 日志
 import logging
@@ -211,59 +197,7 @@ class DemandRecommendedCreatorsView(APIView):
 
 
 # ====== 新增：单张图片上传接口（供需求参考图使用） ======
-class SingleImageUploadView(APIView):
-    """
-    单张图片上传（通用）
-    前端可循环调用此接口，一次上传一张图，获得图片 URL 后存入需求对象的 reference_images 字段。
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    MAX_SIZE = 5 * 1024 * 1024          # 5MB
-    ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg']
+class SingleImageUploadView(GlobalSingleImageUploadView):
+    """兼容旧地址 /api/demands/upload-image/，实际复用全局上传逻辑。"""
 
-    @extend_schema(
-        request={
-            'multipart/form-data': {
-                'type': 'object',
-                'properties': {
-                    'image': {
-                        'type': 'string',
-                        'format': 'binary',
-                        'description': '图片文件（JPEG/PNG，最大5MB）'
-                    }
-                },
-                'required': ['image']
-            }
-        },
-        responses={
-            201: OpenApiResponse(
-                description='上传成功，返回图片URL',
-                response={'type': 'object', 'properties': {'url': {'type': 'string'}}}
-            ),
-            400: OpenApiResponse(description='请求错误（缺少文件、大小超限、格式不支持）'),
-            401: OpenApiResponse(description='未认证'),
-        },
-        description='上传一张图片，返回图片URL。可连续调用最多3次，将返回的URL存入需求的 reference_images 字段。'
-    )
-    def post(self, request):
-        file = request.FILES.get('image')
-        if not file:
-            return Response(
-                {"error": "请上传图片，字段名为 'image'"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if file.size > self.MAX_SIZE:
-            return Response(
-                {"error": f"图片大小不能超过 {self.MAX_SIZE // (1024*1024)}MB"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if file.content_type not in self.ALLOWED_TYPES:
-            return Response(
-                {"error": "仅支持 JPEG/PNG 格式"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        ext = os.path.splitext(file.name)[1]
-        filename = f"{uuid.uuid4().hex}{ext}"
-        sub_path = f"uploads/user_{request.user.id}/"
-        full_path = default_storage.save(sub_path + filename, ContentFile(file.read()))
-        url = request.build_absolute_uri(settings.MEDIA_URL + full_path)
-        return Response({"url": url}, status=status.HTTP_201_CREATED)
+    pass
